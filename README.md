@@ -18,7 +18,3 @@ Requirements
 =============
 
 python
-
-requests
-
-    pip install requests

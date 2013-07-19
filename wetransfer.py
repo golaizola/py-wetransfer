@@ -1,26 +1,29 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 from urlparse import urlparse, parse_qs
-import requests, sys, json, re, getopt
+import urllib, urllib2, sys, json, re, getopt
 
 DOWNLOAD_URL_PARAMS_PREFIX = 'downloads/'
 
 def download(file_id, recipient_id, security_hash):
     url = "https://www.wetransfer.com/api/v1/transfers/{0}/download?recipient_id={1}&security_hash={2}&password=&ie=false".format(file_id, recipient_id, security_hash)
-    r = requests.get(url)
-    download_data = json.loads(r.content)
+    r = urllib.urlopen(url).read()
+    download_data = json.loads(r)
 
     print "Downloading {0}...".format(url)
     if download_data.has_key('direct_link'):
         content_info_string = parse_qs(urlparse(download_data['direct_link']).query)['response-content-disposition'][0]
         file_name = re.findall('filename="(.*?)"', content_info_string)[0]
-        r = requests.get(download_data['direct_link'])
+        r = urllib.urlopen(download_data['direct_link'])
     else:
         file_name = download_data['fields']['filename']
-        r = requests.post(download_data['formdata']['action'], data=download_data["fields"])
+        data = urllib.urlencode(download_data["fields"])
+        req = urllib2.Request(download_data['formdata']['action'], data)
+        r = urllib2.urlopen(req)
 
     output_file = open(file_name, 'w')
-    output_file.write(r.content)
+    output_file.write(r.read())
     output_file.close()
     print "Finished! {0}".format(file_name)
 
@@ -41,12 +44,6 @@ def extract_params(url):
 
     return [file_id, recipient_id, security_hash]
 
-
-def extract_url_redirection(url):
-    """
-        Follow the url redirection if necesary
-    """
-    return requests.get(url).url
 
 def usage():
     print """
@@ -73,7 +70,6 @@ def main(argv):
         if not url:
             usage()
 
-        url = extract_url_redirection(url)
         [file_id, recipient_id, security_hash] = extract_params(url)
         download(file_id, recipient_id, security_hash)
 
